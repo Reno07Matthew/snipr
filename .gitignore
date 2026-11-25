@@ -1,0 +1,53 @@
+# Private notes: separate repo, never in this one
+private/
+CLAUDE.md
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+!*.pub
+*kubeconfig*
+k3s.yaml
+*secret*.local.yaml
+values.local.yaml
+.claude/settings.local.json
+
+# Terraform (.terraform.lock.hcl IS committed)
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+*.tfplan
+tfplan
+crash.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+*.egg-info/
+
+# Local logs, backups, build output
+*.log
+*.dump
+*.sql.gz
+backups/
+*.tgz
+trivy-report.*
+gitleaks-report.*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

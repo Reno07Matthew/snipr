@@ -1,0 +1,12 @@
+# Allowlist: build context is the repo root, so ignore all and add back only
+# what the image needs. Secrets and Git history can never leak in by default.
+*
+!app/
+app/*
+!app/src/
+!app/static/
+!app/requirements.txt
+!app/pyproject.toml
+**/__pycache__/
+**/*.py[cod]
+**/.env*
