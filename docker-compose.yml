@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    environment:
+      # The password goes into a URL: use only letters, digits, "-" and "_".
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      BASE_URL: ${BASE_URL}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine@sha256:f2f98726820d0342055351c6e9d36e705f5bfffb3dd53ff556325114b08afb6d
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?copy .env.example to .env first}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
