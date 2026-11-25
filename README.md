@@ -11,8 +11,8 @@ DevOps / DevSecOps pipeline on AWS.
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Environment and project setup | done |
-| 1 | Application, Docker and CI | in progress |
-| 2 | Terraform infrastructure | planned |
+| 1 | Application, Docker and CI | done |
+| 2 | Terraform infrastructure | next |
 | 3 | Helm chart and first deployment | planned |
 | 4 | Automated CD | planned |
 | 5 | Monitoring and alerting | planned |

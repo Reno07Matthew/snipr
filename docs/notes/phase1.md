@@ -63,7 +63,7 @@ docker compose down        # keeps data; adding -v DELETES the database volume
 | Trivy gate on a vulnerable fixture (PyYAML 5.3) | exit 1, as intended |
 | Failing test | pytest exit 1 |
 | CI's Gitleaks command, run locally | no leaks |
-| CI on GitHub | pending first push |
+| CI on GitHub | [green](https://github.com/Reno07Matthew/snipr/actions/runs/45662067124): test, image and secrets passed; `trivy-report` artifact saved |
 
 ## Problems and fixes
 
