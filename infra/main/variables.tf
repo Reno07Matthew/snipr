@@ -13,10 +13,14 @@ variable "ssh_public_key_path" {
   default     = "~/.ssh/snipr-ec2.pub"
 }
 
-variable "github_repo" {
-  description = "owner/repo allowed to deploy through GitHub OIDC"
+variable "github_oidc_subject_prefix" {
+  # This repo uses GitHub's immutable subject format, which contains the numeric
+  # owner and repo IDs. A renamed or re-created repo with the same name gets a new
+  # ID, so it cannot assume the role. Check with:
+  #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+  description = "OIDC subject prefix of the repository allowed to deploy"
   type        = string
-  default     = "Reno07Matthew/snipr"
+  default     = "repo:Reno07Matthew@113291315/snipr@1472072186"
 }
 
 variable "instance_type" {

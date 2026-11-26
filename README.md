@@ -3,7 +3,7 @@
 A small URL-shortener API used to build and document an end-to-end
 DevOps / DevSecOps pipeline on AWS.
 
-> **Work in progress.** The app runs on AWS (k3s, deployed by hand with Helm), with CI on GitHub. Automated CD, monitoring and backups are not built yet. Sections marked
+> **Work in progress.** The app runs on AWS (k3s) and every push to `main` that passes CI is deployed automatically. Monitoring and backups are not built yet. Sections marked
 > "planned" describe the design, not finished work.
 
 ## Status
@@ -14,8 +14,8 @@ DevOps / DevSecOps pipeline on AWS.
 | 1 | Application, Docker and CI | done |
 | 2 | Terraform infrastructure | done |
 | 3 | Helm chart and first deployment | done |
-| 4 | Automated CD | next |
-| 5 | Monitoring and alerting | planned |
+| 4 | Automated CD | done |
+| 5 | Monitoring and alerting | next |
 | 6 | Ops scripts and Jenkins | planned |
 | 7 | Documentation and demo | planned |
 
@@ -68,6 +68,21 @@ Runs on pull requests and pushes to `main`, without AWS credentials:
 3. **secrets:** Gitleaks over the full Git history.
 
 Test commands are in [docs/notes/phase1.md](docs/notes/phase1.md).
+
+## CD
+
+After CI passes on a push to `main`, `.github/workflows/cd.yml`:
+
+1. assumes an AWS role through GitHub OIDC (no stored AWS keys);
+2. pushes the image, tagged with the full commit SHA, and the chart, versioned
+   `0.1.<run number>`, to ECR (skipped if they already exist);
+3. runs `scripts/deploy.sh` on the node through SSM Run Command, which runs
+   `helm upgrade --install --rollback-on-failure --wait`;
+4. smoke-tests `/healthz` and `/readyz`, and writes the SHA and chart version to
+   the job summary.
+
+A failed rollout rolls back automatically; the demo is in
+[docs/notes/phase4.md](docs/notes/phase4.md).
 
 ## Infrastructure
 
