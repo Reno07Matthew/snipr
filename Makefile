@@ -21,8 +21,8 @@ stop:
 
 # shortcut: scripts are copied by hand, not by user_data; rerun after replacing the node.
 node-scripts:
-	scp -i $(SSH_KEY) scripts/ecr-refresh.sh ubuntu@$(IP):/tmp/
-	ssh -i $(SSH_KEY) ubuntu@$(IP) 'sudo install -D -m 0755 /tmp/ecr-refresh.sh /opt/snipr/bin/ecr-refresh.sh && rm /tmp/ecr-refresh.sh'
+	scp -i $(SSH_KEY) scripts/ecr-refresh.sh scripts/deploy.sh ubuntu@$(IP):/tmp/
+	ssh -i $(SSH_KEY) ubuntu@$(IP) 'for f in ecr-refresh.sh deploy.sh; do sudo install -D -m 0755 /tmp/$$f /opt/snipr/bin/$$f && rm /tmp/$$f; done'
 	ssh -i $(SSH_KEY) ubuntu@$(IP) 'printf "%s\n" \
 	  "# Managed by make node-scripts" \
 	  "SHELL=/bin/bash" \

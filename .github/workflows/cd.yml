@@ -1,0 +1,111 @@
+name: CD
+
+# Runs after CI finishes; the job below continues only if CI passed on a push to main.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write # GitHub OIDC token, exchanged for short-lived AWS credentials
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # queue the next deploy; never kill one mid-rollout
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }} # exactly the commit CI tested
+      CHART_VERSION: 0.1.${{ github.run_number }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      REGISTRY: ${{ vars.ECR_REGISTRY }}
+      INSTANCE_ID: ${{ vars.INSTANCE_ID }}
+      BASE_URL: http://${{ vars.PUBLIC_IP }}
+      HELM_VERSION: v4.3.0
+      HELM_SHA256: 86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - uses: aws-actions/configure-aws-credentials@45666896f5d8e0f10ae255413f3a4cdd03bdc8f5 # v6.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - name: Log in to ECR
+        run: aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
+
+      - name: Build and push image (skip if this SHA exists)
+        run: |
+          if aws ecr describe-images --repository-name snipr --image-ids imageTag="$SHA" >/dev/null 2>&1; then
+            echo "image snipr:$SHA already in ECR, skipping push"
+          else
+            docker build -f app/Dockerfile -t "$REGISTRY/snipr:$SHA" .
+            docker push "$REGISTRY/snipr:$SHA"
+          fi
+
+      - name: Install Helm
+        run: |
+          curl -sfL -o helm.tgz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          echo "$HELM_SHA256  helm.tgz" | sha256sum -c --quiet
+          tar -xzf helm.tgz linux-amd64/helm && sudo install -m 0755 linux-amd64/helm /usr/local/bin/helm
+          helm version --short
+
+      - name: Package and push chart (skip if this version exists)
+        run: |
+          if aws ecr describe-images --repository-name charts/snipr --image-ids imageTag="$CHART_VERSION" >/dev/null 2>&1; then
+            echo "chart $CHART_VERSION already in ECR, skipping push"
+          else
+            helm package helm/snipr --version "$CHART_VERSION" --app-version "$SHA"
+            aws ecr get-login-password | helm registry login --username AWS --password-stdin "$REGISTRY"
+            helm push "snipr-$CHART_VERSION.tgz" "oci://$REGISTRY/charts"
+          fi
+
+      - name: Deploy through SSM
+        run: |
+          # SSM runs this string through a shell: quote each value so it stays one argument.
+          cmd=$(printf '/opt/snipr/bin/deploy.sh %q %q %q' "$CHART_VERSION" "$SHA" "$BASE_URL")
+          params=$(jq -nc --arg c "$cmd" '{commands: [$c]}')
+          id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
+            --comment "snipr ${SHA:0:7} chart $CHART_VERSION" --parameters "$params" \
+            --timeout-seconds 600 --query Command.CommandId --output text)
+          echo "SSM command: $id"
+          # Poll instead of "aws ssm wait command-executed", which gives up after 100 s;
+          # helm --wait alone may take 180 s.
+          for _ in $(seq 60); do
+            status=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
+              --query Status --output text 2>/dev/null || echo Pending)
+            case $status in Pending|InProgress|Delayed) sleep 10 ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent, StandardErrorContent]' --output text
+          echo "SSM status: $status"
+          [ "$status" = Success ]
+
+      - name: Smoke test
+        run: |
+          for path in /healthz /readyz; do
+            curl -fsS --retry 10 --retry-delay 3 --retry-all-errors --max-time 5 "$BASE_URL$path"
+            echo " <- $path"
+          done
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### snipr deploy: ${{ job.status }}"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`$SHA\` |"
+            echo "| Chart version | \`$CHART_VERSION\` |"
+            echo "| Endpoint | $BASE_URL |"
+          } >> "$GITHUB_STEP_SUMMARY"
