@@ -55,6 +55,11 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
+          lifecycle:
+            # Keep serving for a moment while Traefik drops this pod from its
+            # endpoints; without it, a rollout loses a few requests.
+            preStop:
+              sleep: { seconds: 5 }
           resources: {{- toYaml .Values.resources | nindent 12 }}
           securityContext: {{- include "snipr.restricted" . | nindent 12 }}
           volumeMounts:
