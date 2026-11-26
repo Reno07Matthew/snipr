@@ -3,7 +3,7 @@
 A small URL-shortener API used to build and document an end-to-end
 DevOps / DevSecOps pipeline on AWS.
 
-> **Work in progress.** The application, container and CI exist. Sections marked
+> **Work in progress.** The application, CI and AWS infrastructure (a k3s node) exist; the app is not deployed to it yet. Sections marked
 > "planned" describe the design, not finished work.
 
 ## Status
@@ -12,8 +12,8 @@ DevOps / DevSecOps pipeline on AWS.
 |---|---|---|
 | 0 | Environment and project setup | done |
 | 1 | Application, Docker and CI | done |
-| 2 | Terraform infrastructure | in progress (code written, not applied) |
-| 3 | Helm chart and first deployment | planned |
+| 2 | Terraform infrastructure | done |
+| 3 | Helm chart and first deployment | next |
 | 4 | Automated CD | planned |
 | 5 | Monitoring and alerting | planned |
 | 6 | Ops scripts and Jenkins | planned |
@@ -68,6 +68,23 @@ Runs on pull requests and pushes to `main`, without AWS credentials:
 3. **secrets:** Gitleaks over the full Git history.
 
 Test commands are in [docs/notes/phase1.md](docs/notes/phase1.md).
+
+## Infrastructure
+
+Terraform in `ap-south-1`, in two stacks:
+
+- **`infra/bootstrap`:** S3 state bucket and a monthly budget alert.
+- **`infra/main`:** VPC, public subnet, security group (SSH from one address,
+  HTTP 80 public), one EC2 `m7i-flex.large` running k3s, Elastic IP, ECR repos for
+  the image and Helm chart, a backup bucket, and a GitHub OIDC deploy role.
+
+The node bootstraps itself with `scripts/bootstrap-node.sh`. Steps and results are
+in [docs/notes/phase2.md](docs/notes/phase2.md).
+
+## Cost
+
+The node is about USD 2.54/day: instance USD 0.10075/h, public IPv4 USD 0.005/h,
+and a 20 GB gp3 disk. Resources cost money until they are destroyed.
 
 ## Planned design
 

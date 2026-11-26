@@ -6,7 +6,7 @@ resource "aws_security_group" "node" {
 
 resource "aws_vpc_security_group_ingress_rule" "ssh" {
   security_group_id = aws_security_group.node.id
-  description       = "SSH from the owner's IP only"
+  description       = "SSH from the owner IP only"
   ip_protocol       = "tcp"
   from_port         = 22
   to_port           = 22

@@ -69,6 +69,10 @@ log "SSM agent active"
 log "kubeconfig for $ADMIN_USER"
 install -d -m 0700 -o "$ADMIN_USER" -g "$ADMIN_USER" "/home/$ADMIN_USER/.kube"
 install -m 0600 -o "$ADMIN_USER" -g "$ADMIN_USER" "$KUBECONFIG" "/home/$ADMIN_USER/.kube/config"
+# Without this, k3s's kubectl reads the root-only /etc/rancher/k3s/k3s.yaml.
+# shellcheck disable=SC2016 # $HOME must expand at login, not now
+line='export KUBECONFIG="$HOME/.kube/config"'
+grep -qxF "$line" "/home/$ADMIN_USER/.bashrc" || echo "$line" >> "/home/$ADMIN_USER/.bashrc"
 
 for ns in "${NAMESPACES[@]}"; do
   kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f - >/dev/null

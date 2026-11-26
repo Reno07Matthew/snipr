@@ -17,10 +17,6 @@ resource "aws_instance" "node" {
   iam_instance_profile   = aws_iam_instance_profile.node.name
   user_data              = file("${path.module}/../../scripts/bootstrap-node.sh")
 
-  credit_specification {
-    cpu_credits = "standard" # no surprise charges for sustained CPU; throttles instead
-  }
-
   metadata_options {
     http_tokens                 = "required" # IMDSv2 only
     http_put_response_hop_limit = 1          # pods cannot reach the instance credentials

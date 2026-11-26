@@ -20,9 +20,11 @@ variable "github_repo" {
 }
 
 variable "instance_type" {
+  # The account is on the AWS free plan, which only allows free-tier types
+  # (t3.medium is not one). m7i-flex.large: 2 vCPU, 8 GiB.
   description = "EC2 instance type"
   type        = string
-  default     = "t3.medium"
+  default     = "m7i-flex.large"
 }
 
 variable "root_volume_gb" {
