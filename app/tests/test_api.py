@@ -108,3 +108,8 @@ def test_homepage(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "snipr" in response.text
+
+
+def test_deliberately_failing():
+    """Demo only: shows CI failing on a pull request. Never merge."""
+    assert 1 + 1 == 3
