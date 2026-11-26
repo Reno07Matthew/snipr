@@ -5,7 +5,7 @@ INSTANCE = $(shell $(TF) output -raw instance_id)
 IP = $(shell $(TF) output -raw public_ip)
 SSH_KEY := $(HOME)/.ssh/snipr-ec2
 
-.PHONY: start stop node-scripts
+.PHONY: start stop node-scripts monitoring test-rules
 
 # Stopping keeps the disk (and the database). While stopped, the disk and the
 # Elastic IP are still billed; the instance is not.
@@ -33,3 +33,24 @@ node-scripts:
 	ssh -i $(SSH_KEY) ubuntu@$(IP) 'printf "%s\n" "/var/log/snipr-*.log {" "  weekly" "  rotate 4" "  compress" "  missingok" "  notifempty" "}" \
 	  | sudo tee /etc/logrotate.d/snipr >/dev/null'
 	ssh -i $(SSH_KEY) ubuntu@$(IP) 'sudo /opt/snipr/bin/ecr-refresh.sh 2>&1 | sudo tee -a /var/log/snipr-ecr-refresh.log'
+
+# Install or upgrade the monitoring stack on the node (needs the secrets
+# alertmanager-discord and grafana-admin in namespace monitoring).
+KPS_VERSION := 93.11.1
+monitoring:
+	scp -i $(SSH_KEY) monitoring/kps-values.yaml monitoring/dashboards/snipr.json ubuntu@$(IP):/tmp/
+	ssh -i $(SSH_KEY) ubuntu@$(IP) 'export KUBECONFIG=$$HOME/.kube/config && \
+	  kubectl -n monitoring create configmap snipr-dashboard --from-file=/tmp/snipr.json --dry-run=client -o yaml \
+	    | kubectl label --local -f - grafana_dashboard=1 -o yaml | kubectl apply -f - && \
+	  helm upgrade --install kps oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+	    --version $(KPS_VERSION) -n monitoring -f /tmp/kps-values.yaml --timeout 10m && \
+	  rm /tmp/kps-values.yaml /tmp/snipr.json'
+
+# Unit-test the alert rules with promtool (same version as the cluster's Prometheus).
+PROMETHEUS_IMAGE := prom/prometheus:v3.16.0
+test-rules:
+	helm template snipr helm/snipr -n snipr --api-versions monitoring.coreos.com/v1 \
+	  --set image.repository=x --set image.tag=x --set baseUrl=http://x -s templates/prometheusrule.yaml \
+	  | python3 -c 'import sys, yaml; print(yaml.safe_dump(yaml.safe_load(sys.stdin)["spec"]))' > monitoring/tests/rules.yaml
+	docker run --rm -v "$(CURDIR)/monitoring/tests:/t:ro" -w /t --entrypoint promtool $(PROMETHEUS_IMAGE) test rules rules.test.yaml
+	rm -f monitoring/tests/rules.yaml

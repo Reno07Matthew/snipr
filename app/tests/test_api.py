@@ -108,3 +108,10 @@ def test_homepage(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "snipr" in response.text
+
+
+def test_latency_histogram_has_fine_buckets(client):
+    client.get("/")
+    text = client.get("/metrics").text
+    for le in ("0.005", "0.025", "0.25", "2.5"):
+        assert f'http_request_duration_seconds_bucket{{handler="/",le="{le}"' in text

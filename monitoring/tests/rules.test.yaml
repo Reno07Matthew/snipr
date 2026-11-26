@@ -1,0 +1,75 @@
+# Unit tests for the alert rules, run with: make test-rules
+# Synthetic series; "a+bxN" means start at a and add b each step, N times.
+rule_files: [rules.yaml]
+evaluation_interval: 30s
+
+tests:
+  - name: SniprDown fires after 1 minute with 0 available pods
+    interval: 30s
+    input_series:
+      - series: 'kube_deployment_status_replicas_available{namespace="snipr",deployment="snipr"}'
+        values: "2 2 0 0 0 0 0"
+    alert_rule_test:
+      - { eval_time: 1m, alertname: SniprDown, exp_alerts: [] } # just dropped to 0: pending
+      - eval_time: 2m30s
+        alertname: SniprDown
+        exp_alerts:
+          - exp_labels: { severity: critical, namespace: snipr, deployment: snipr }
+            exp_annotations:
+              summary: "snipr has no available pods"
+              description: "Deployment snipr/snipr has had 0 available replicas for over 1 minute."
+
+  - name: SniprDown stays quiet while pods are available
+    interval: 30s
+    input_series:
+      - series: 'kube_deployment_status_replicas_available{namespace="snipr",deployment="snipr"}'
+        values: "2x10"
+    alert_rule_test:
+      - { eval_time: 5m, alertname: SniprDown, exp_alerts: [] }
+
+  - name: SniprHighErrorRate fires at 10% 5xx for 5 minutes
+    interval: 1m
+    input_series: # 100 requests/min, 10 of them 5xx
+      - series: 'http_requests_total{namespace="snipr",handler="/{code}",method="GET",status="2xx"}'
+        values: "0+90x15"
+      - series: 'http_requests_total{namespace="snipr",handler="/{code}",method="GET",status="5xx"}'
+        values: "0+10x15"
+    alert_rule_test:
+      - { eval_time: 4m, alertname: SniprHighErrorRate, exp_alerts: [] } # not yet 5 minutes
+      - eval_time: 12m
+        alertname: SniprHighErrorRate
+        exp_alerts:
+          - exp_labels: { severity: warning }
+            exp_annotations:
+              summary: "snipr 5xx ratio above 5%"
+              description: "More than 5% of snipr responses have been 5xx for 5 minutes."
+
+  - name: SniprHighErrorRate stays quiet at 2% 5xx
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{namespace="snipr",handler="/{code}",method="GET",status="2xx"}'
+        values: "0+98x15"
+      - series: 'http_requests_total{namespace="snipr",handler="/{code}",method="GET",status="5xx"}'
+        values: "0+2x15"
+    alert_rule_test:
+      - { eval_time: 12m, alertname: SniprHighErrorRate, exp_alerts: [] }
+
+  - name: NodeHighMemory fires above 85% for 5 minutes, not at 80%
+    interval: 1m
+    input_series: # 8 GiB total; 10% available = 90% used
+      - series: 'node_memory_MemTotal_bytes{instance="node-a"}'
+        values: "8589934592x12"
+      - series: 'node_memory_MemAvailable_bytes{instance="node-a"}'
+        values: "858993459x12"
+      - series: 'node_memory_MemTotal_bytes{instance="node-b"}'
+        values: "8589934592x12"
+      - series: 'node_memory_MemAvailable_bytes{instance="node-b"}'
+        values: "1717986918x12"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: NodeHighMemory
+        exp_alerts:
+          - exp_labels: { severity: warning, instance: node-a }
+            exp_annotations:
+              summary: "Node memory above 85%"
+              description: "Node node-a has used more than 85% of its memory for 5 minutes."

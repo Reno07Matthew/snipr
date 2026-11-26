@@ -1,0 +1,16 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" }}
+# Prometheus scrapes the Service inside the cluster; /metrics stays blocked at the Ingress.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: snipr
+  labels: {{- include "snipr.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: snipr
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+{{- end }}

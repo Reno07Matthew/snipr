@@ -1,0 +1,44 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1" }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: snipr
+  labels: {{- include "snipr.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: snipr
+      rules:
+        - alert: SniprDown
+          # Also fires if kube-state-metrics stops reporting the Deployment at all.
+          expr: |
+            (kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}", deployment="snipr"} == 0)
+            or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}", deployment="snipr"})
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "snipr has no available pods"
+            description: "Deployment {{ .Release.Namespace }}/snipr has had 0 available replicas for over 1 minute."
+        - alert: SniprHighErrorRate
+          # Requests the app answered with 5xx, as a share of all it answered.
+          # With no traffic the ratio is undefined, so it cannot fire.
+          expr: |
+            sum(rate(http_requests_total{namespace="{{ .Release.Namespace }}", status="5xx"}[5m]))
+              / sum(rate(http_requests_total{namespace="{{ .Release.Namespace }}"}[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "snipr 5xx ratio above 5%"
+            description: "More than 5% of snipr responses have been 5xx for 5 minutes."
+    - name: node
+      rules:
+        - alert: NodeHighMemory
+          expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node memory above 85%"
+            description: "Node {{`{{ $labels.instance }}`}} has used more than 85% of its memory for 5 minutes."
+{{- end }}

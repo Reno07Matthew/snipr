@@ -54,3 +54,4 @@ gitleaks-report.*
 
 # Terraform override files (used for local-only experiments)
 *_override.tf
+monitoring/tests/rules.yaml
