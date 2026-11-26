@@ -3,7 +3,7 @@
 A small URL-shortener API used to build and document an end-to-end
 DevOps / DevSecOps pipeline on AWS.
 
-> **Work in progress.** The app runs on AWS (k3s) and every push to `main` that passes CI is deployed automatically. Monitoring and backups are not built yet. Sections marked
+> **Work in progress.** The app runs on AWS (k3s) and every push to `main` that passes CI is deployed automatically. Prometheus, Grafana and Discord alerts are live. Database backups are not built yet. Sections marked
 > "planned" describe the design, not finished work.
 
 ## Status
@@ -15,8 +15,8 @@ DevOps / DevSecOps pipeline on AWS.
 | 2 | Terraform infrastructure | done |
 | 3 | Helm chart and first deployment | done |
 | 4 | Automated CD | done |
-| 5 | Monitoring and alerting | next |
-| 6 | Ops scripts and Jenkins | planned |
+| 5 | Monitoring and alerting | done |
+| 6 | Ops scripts and Jenkins | next |
 | 7 | Documentation and demo | planned |
 
 Evidence and design notes for each finished phase are in [docs/notes](docs/notes).
@@ -83,6 +83,17 @@ After CI passes on a push to `main`, `.github/workflows/cd.yml`:
 
 A failed rollout rolls back automatically; the demo is in
 [docs/notes/phase4.md](docs/notes/phase4.md).
+
+## Monitoring
+
+- **Stack:** a trimmed kube-prometheus-stack on the node (`make monitoring`).
+  Prometheus scrapes the app's Service inside the cluster, and Grafana shows the
+  `snipr` dashboard.
+- **Alerts:** `SniprDown`, `SniprHighErrorRate` and `NodeHighMemory` go to Discord,
+  with a message when each one resolves. `make test-rules` unit-tests them.
+- **Access:** nothing is public. Reach Grafana through an SSH tunnel.
+
+Details in [docs/notes/phase5.md](docs/notes/phase5.md).
 
 ## Infrastructure
 
