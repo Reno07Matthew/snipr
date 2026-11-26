@@ -51,3 +51,6 @@ gitleaks-report.*
 .DS_Store
 .idea/
 .vscode/
+
+# Terraform override files (used for local-only experiments)
+*_override.tf
