@@ -3,7 +3,7 @@
 A small URL-shortener API used to build and document an end-to-end
 DevOps / DevSecOps pipeline on AWS.
 
-> **Work in progress.** The application, CI and AWS infrastructure (a k3s node) exist; the app is not deployed to it yet. Sections marked
+> **Work in progress.** The app runs on AWS (k3s, deployed by hand with Helm), with CI on GitHub. Automated CD, monitoring and backups are not built yet. Sections marked
 > "planned" describe the design, not finished work.
 
 ## Status
@@ -13,8 +13,8 @@ DevOps / DevSecOps pipeline on AWS.
 | 0 | Environment and project setup | done |
 | 1 | Application, Docker and CI | done |
 | 2 | Terraform infrastructure | done |
-| 3 | Helm chart and first deployment | next |
-| 4 | Automated CD | planned |
+| 3 | Helm chart and first deployment | done |
+| 4 | Automated CD | next |
 | 5 | Monitoring and alerting | planned |
 | 6 | Ops scripts and Jenkins | planned |
 | 7 | Documentation and demo | planned |
@@ -80,6 +80,22 @@ Terraform in `ap-south-1`, in two stacks:
 
 The node bootstraps itself with `scripts/bootstrap-node.sh`. Steps and results are
 in [docs/notes/phase2.md](docs/notes/phase2.md).
+
+## Kubernetes deployment
+
+The Helm chart in `helm/snipr` deploys:
+
+- the app: 2 replicas behind Traefik on port 80, scaled by an HPA;
+- PostgreSQL: a StatefulSet with its data on a `local-path` volume on the node.
+
+`/metrics` is blocked from outside. Image pulls from ECR use a secret that a cron
+job on the node refreshes (`scripts/ecr-refresh.sh`). Deploy steps and results are
+in [docs/notes/phase3.md](docs/notes/phase3.md).
+
+```bash
+make stop     # stop the instance; disk and data are kept
+make start    # start it again
+```
 
 ## Cost
 

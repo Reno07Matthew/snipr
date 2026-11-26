@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snipr
+  labels: {{- include "snipr.labels" . | nindent 4 }}
+data:
+  BASE_URL: {{ required "baseUrl is required" .Values.baseUrl | quote }}

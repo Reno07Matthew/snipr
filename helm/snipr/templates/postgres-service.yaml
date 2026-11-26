@@ -1,0 +1,13 @@
+# Headless: gives the StatefulSet pod a stable DNS name. Cluster-internal only.
+apiVersion: v1
+kind: Service
+metadata:
+  name: snipr-postgres
+  labels: {{- include "snipr.labels" . | nindent 4 }}
+    app.kubernetes.io/name: snipr-postgres
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: snipr-postgres
+  ports:
+    - { name: postgres, port: 5432 }
