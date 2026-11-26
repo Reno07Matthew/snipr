@@ -19,7 +19,7 @@ resources:
   requests: { cpu: 50m, memory: 96Mi }
   limits: { cpu: 500m, memory: 256Mi }
 
-readinessPath: /does-not-exist # DEMO ONLY: breaks readiness to show rollback; reverted next commit
+readinessPath: /readyz # the rollback demo overrides this with a missing path
 
 hpa:
   enabled: true
