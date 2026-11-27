@@ -1,0 +1,41 @@
+%% snipr architecture. Source of docs/architecture.svg: run "make diagram".
+flowchart LR
+  dev([Developer]) -->|git push / PR| gh[GitHub repo]
+  user([Internet user]) -->|HTTP :80| traefik
+
+  subgraph actions[GitHub Actions]
+    ci["CI: Ruff · pytest · Docker build<br/>Trivy gate · Gitleaks"]
+    cd["CD on main after CI:<br/>build · push · deploy · smoke test"]
+    ci -->|success on main| cd
+  end
+  gh --> ci
+
+  subgraph aws[AWS ap-south-1 · Terraform]
+    sts[IAM role via GitHub OIDC]
+    ecr[("ECR: image (SHA tag)<br/>+ Helm chart (OCI)")]
+    ssm[SSM Run Command]
+    s3state[(S3: Terraform state)]
+    s3backup[(S3: DB backups, keep 7)]
+    budget[Budget alert]
+
+    subgraph ec2[EC2 m7i-flex.large · Elastic IP · SG: 80 public, 22 one IP]
+      cron["cron: backup-db · healthcheck<br/>ecr-refresh"]
+      subgraph k3s[k3s]
+        traefik[Traefik ingress] --> app[snipr API x2 · HPA]
+        app --> pg[(PostgreSQL StatefulSet<br/>local-path PVC)]
+        subgraph mon[monitoring namespace]
+          prom[Prometheus] --> am[Alertmanager]
+          graf[Grafana]
+        end
+        prom -. scrapes Service .-> app
+      end
+    end
+  end
+
+  cd -->|OIDC token| sts
+  cd -->|push| ecr
+  cd -->|send-command| ssm --> ec2
+  ecr -->|pull image + chart| app
+  cron -->|pg_dump| s3backup
+  am -->|alerts| discord([Discord])
+  dev -. SSH tunnel .-> graf

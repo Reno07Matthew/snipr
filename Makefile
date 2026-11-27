@@ -5,7 +5,7 @@ INSTANCE = $(shell $(TF) output -raw instance_id)
 IP = $(shell $(TF) output -raw public_ip)
 SSH_KEY := $(HOME)/.ssh/snipr-ec2
 
-.PHONY: start stop node-scripts monitoring test-rules update-ip
+.PHONY: start stop node-scripts monitoring test-rules update-ip diagram
 
 # Stopping keeps the disk (and the database). While stopped, the disk and the
 # Elastic IP are still billed; the instance is not.
@@ -66,3 +66,9 @@ update-ip:
 	  sed -i -E "s|^(my_ip *= *\")[^\"]*(\")|\1$$ip/32\2|" infra/main/terraform.tfvars && \
 	  echo "my_ip set to $$ip/32 in infra/main/terraform.tfvars"
 	$(TF) apply -target=aws_vpc_security_group_ingress_rule.ssh
+
+# Render docs/architecture.svg from docs/architecture.mmd (Mermaid source).
+MERMAID_IMAGE := minlag/mermaid-cli:12.0.1@sha256:18938e53497376d524e04b1fc0bf7b6d61a491ce9ff7032bb2855d57155acb10
+diagram:
+	docker run --rm -u $$(id -u):$$(id -g) -v "$(CURDIR)/docs:/data" $(MERMAID_IMAGE) \
+	  -i /data/architecture.mmd -o /data/architecture.svg -b white
