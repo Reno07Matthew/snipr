@@ -83,6 +83,9 @@ largest user (about 390 Mi), then Prometheus (about 330 Mi). Disk is 41% used.
 | 15:35:28 | rule inactive |
 | 15:35:48 | resolved message sent (1 → 2, 0 failed) |
 
+The owner confirmed both Discord messages arrived: `[FIRING:1] SniprDown` at
+9:04 PM IST (15:34 UTC) and `[RESOLVED] SniprDown`.
+
 The HPA was paused at 0 replicas, as Kubernetes does, and resumed at 2.
 
 **Other checks:**
@@ -129,9 +132,11 @@ as `SniprHighErrorRate`.
 - **Short retention:** 2 days; the PVC is on the node's disk.
 - **Grafana has no persistence:** UI edits are lost on restart; change the JSON
   file instead.
-- **Discord delivery evidence is Alertmanager's** success counter: Discord accepted
-  both requests (firing and resolved), with 0 failures. The owner has not yet
-  confirmed seeing the messages in the channel.
+- **Alert labels:** the first Discord messages carried kube-state-metrics' own
+  labels (pod, instance, job, endpoint) in the title. Fixed on 2026-11-27: each
+  rule now aggregates (`sum by (namespace, deployment)`, `sum by (namespace)`,
+  `max by (instance)`). The rule tests feed series with those extra labels and
+  expect only the kept ones; the old rules fail them.
 - **`NodeHighMemory` was not fired live,** on purpose, to avoid stressing the only node.
 - **The rule tests run locally** with `make test-rules`, not in CI.
 

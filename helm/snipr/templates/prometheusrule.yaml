@@ -9,9 +9,10 @@ spec:
     - name: snipr
       rules:
         - alert: SniprDown
-          # Also fires if kube-state-metrics stops reporting the Deployment at all.
+          # sum by (...) keeps only readable labels (not kube-state-metrics' own pod,
+          # job, instance...). Also fires if the Deployment is not reported at all.
           expr: |
-            (kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}", deployment="snipr"} == 0)
+            (sum by (namespace, deployment) (kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}", deployment="snipr"}) == 0)
             or absent(kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}", deployment="snipr"})
           for: 1m
           labels:
@@ -23,8 +24,8 @@ spec:
           # Requests the app answered with 5xx, as a share of all it answered.
           # With no traffic the ratio is undefined, so it cannot fire.
           expr: |
-            sum(rate(http_requests_total{namespace="{{ .Release.Namespace }}", status="5xx"}[5m]))
-              / sum(rate(http_requests_total{namespace="{{ .Release.Namespace }}"}[5m])) > 0.05
+            sum by (namespace) (rate(http_requests_total{namespace="{{ .Release.Namespace }}", status="5xx"}[5m]))
+              / sum by (namespace) (rate(http_requests_total{namespace="{{ .Release.Namespace }}"}[5m])) > 0.05
           for: 5m
           labels:
             severity: warning
@@ -34,7 +35,7 @@ spec:
     - name: node
       rules:
         - alert: NodeHighMemory
-          expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+          expr: max by (instance) (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
           for: 5m
           labels:
             severity: warning

@@ -7,7 +7,8 @@ tests:
   - name: SniprDown fires after 1 minute with 0 available pods
     interval: 30s
     input_series:
-      - series: 'kube_deployment_status_replicas_available{namespace="snipr",deployment="snipr"}'
+      # Extra labels like the real kube-state-metrics series; the alert must drop them.
+      - series: 'kube_deployment_status_replicas_available{namespace="snipr",deployment="snipr",pod="kps-kube-state-metrics-x",job="kube-state-metrics",instance="10.42.0.37:8080"}'
         values: "2 2 0 0 0 0 0"
     alert_rule_test:
       - { eval_time: 1m, alertname: SniprDown, exp_alerts: [] } # just dropped to 0: pending
@@ -39,7 +40,7 @@ tests:
       - eval_time: 12m
         alertname: SniprHighErrorRate
         exp_alerts:
-          - exp_labels: { severity: warning }
+          - exp_labels: { severity: warning, namespace: snipr }
             exp_annotations:
               summary: "snipr 5xx ratio above 5%"
               description: "More than 5% of snipr responses have been 5xx for 5 minutes."
@@ -57,9 +58,9 @@ tests:
   - name: NodeHighMemory fires above 85% for 5 minutes, not at 80%
     interval: 1m
     input_series: # 8 GiB total; 10% available = 90% used
-      - series: 'node_memory_MemTotal_bytes{instance="node-a"}'
+      - series: 'node_memory_MemTotal_bytes{instance="node-a",job="node-exporter",pod="ne-a"}'
         values: "8589934592x12"
-      - series: 'node_memory_MemAvailable_bytes{instance="node-a"}'
+      - series: 'node_memory_MemAvailable_bytes{instance="node-a",job="node-exporter",pod="ne-a"}'
         values: "858993459x12"
       - series: 'node_memory_MemTotal_bytes{instance="node-b"}'
         values: "8589934592x12"

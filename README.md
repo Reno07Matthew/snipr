@@ -3,8 +3,10 @@
 A small URL-shortener API used to build and document an end-to-end
 DevOps / DevSecOps pipeline on AWS.
 
-> **Work in progress.** The app runs on AWS (k3s) and every push to `main` that passes CI is deployed automatically. Prometheus, Grafana and Discord alerts are live. Database backups are not built yet. Sections marked
-> "planned" describe the design, not finished work.
+> **Work in progress.** The app runs on AWS (k3s), and every push to `main` that
+> passes CI is deployed automatically. Prometheus, Grafana and Discord alerts are
+> live. **Database backups, the scheduled health check and the Jenkins pipeline
+> are not built yet** (Phase 6).
 
 ## Status
 
@@ -128,7 +130,7 @@ make start    # start it again
 The node is about USD 2.54/day: instance USD 0.10075/h, public IPv4 USD 0.005/h,
 and a 20 GB gp3 disk. Resources cost money until they are destroyed.
 
-## Planned design
+## Architecture
 
 Push to GitHub → GitHub Actions lints, tests, builds and scans → on `main`, the
 image and Helm chart go to Amazon ECR using GitHub OIDC → SSM Run Command runs
@@ -141,6 +143,9 @@ image and Helm chart go to Amazon ECR using GitHub OIDC → SSM Run Command runs
 
 ## Known limitations
 
-- No authentication or rate limiting.
-- The planned deployment is a single EC2 node, so it is not highly available.
-- Public HTTP only; HTTPS is future work.
+- **No database backups yet.** PostgreSQL lives on the node's disk; backups to S3
+  and a tested restore come in Phase 6.
+- **One node:** a single EC2 node, so it is not highly available.
+- **Plain HTTP:** HTTPS is future work.
+- **No authentication or rate limiting.**
+- **Short metrics history:** 2 days, and Grafana edits made in the UI are not kept.

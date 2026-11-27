@@ -5,7 +5,7 @@ INSTANCE = $(shell $(TF) output -raw instance_id)
 IP = $(shell $(TF) output -raw public_ip)
 SSH_KEY := $(HOME)/.ssh/snipr-ec2
 
-.PHONY: start stop node-scripts monitoring test-rules
+.PHONY: start stop node-scripts monitoring test-rules update-ip
 
 # Stopping keeps the disk (and the database). While stopped, the disk and the
 # Elastic IP are still billed; the instance is not.
@@ -54,3 +54,12 @@ test-rules:
 	  | python3 -c 'import sys, yaml; print(yaml.safe_dump(yaml.safe_load(sys.stdin)["spec"]))' > monitoring/tests/rules.yaml
 	docker run --rm -v "$(CURDIR)/monitoring/tests:/t:ro" -w /t --entrypoint promtool $(PROMETHEUS_IMAGE) test rules rules.test.yaml
 	rm -f monitoring/tests/rules.yaml
+
+# Point the SSH rule at your current public IP. Terraform shows the plan for that
+# one rule and asks you to type "yes"; anything else leaves AWS unchanged.
+update-ip:
+	@ip=$$(curl -sf --max-time 5 https://checkip.amazonaws.com) && \
+	  echo "$$ip" | grep -Eq '^[0-9]{1,3}(\.[0-9]{1,3}){3}$$' || { echo "could not read a valid public IP"; exit 1; }; \
+	  sed -i -E "s|^(my_ip *= *\")[^\"]*(\")|\1$$ip/32\2|" infra/main/terraform.tfvars && \
+	  echo "my_ip set to $$ip/32 in infra/main/terraform.tfvars"
+	$(TF) apply -target=aws_vpc_security_group_ingress_rule.ssh
