@@ -19,16 +19,19 @@ stop:
 	aws ec2 wait instance-stopped --instance-ids $(INSTANCE)
 	@echo "stopped"
 
+NODE_SCRIPTS := ecr-refresh.sh deploy.sh backup-db.sh restore-test.sh healthcheck.sh
 # shortcut: scripts are copied by hand, not by user_data; rerun after replacing the node.
 node-scripts:
-	scp -i $(SSH_KEY) scripts/ecr-refresh.sh scripts/deploy.sh ubuntu@$(IP):/tmp/
-	ssh -i $(SSH_KEY) ubuntu@$(IP) 'for f in ecr-refresh.sh deploy.sh; do sudo install -D -m 0755 /tmp/$$f /opt/snipr/bin/$$f && rm /tmp/$$f; done'
+	scp -i $(SSH_KEY) $(NODE_SCRIPTS:%=scripts/%) ubuntu@$(IP):/tmp/
+	ssh -i $(SSH_KEY) ubuntu@$(IP) 'for f in $(NODE_SCRIPTS); do sudo install -D -m 0755 /tmp/$$f /opt/snipr/bin/$$f && rm /tmp/$$f; done'
 	ssh -i $(SSH_KEY) ubuntu@$(IP) 'printf "%s\n" \
 	  "# Managed by make node-scripts" \
 	  "SHELL=/bin/bash" \
 	  "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin" \
 	  "@reboot root /opt/snipr/bin/ecr-refresh.sh >> /var/log/snipr-ecr-refresh.log 2>&1" \
 	  "0 */6 * * * root /opt/snipr/bin/ecr-refresh.sh >> /var/log/snipr-ecr-refresh.log 2>&1" \
+	  "*/5 * * * * root /opt/snipr/bin/healthcheck.sh >> /var/log/snipr-healthcheck.log 2>&1" \
+	  "30 21 * * * root /opt/snipr/bin/backup-db.sh >> /var/log/snipr-backup.log 2>&1" \
 	  | sudo tee /etc/cron.d/snipr >/dev/null && sudo chmod 0644 /etc/cron.d/snipr'
 	ssh -i $(SSH_KEY) ubuntu@$(IP) 'printf "%s\n" "/var/log/snipr-*.log {" "  weekly" "  rotate 4" "  compress" "  missingok" "  notifempty" "}" \
 	  | sudo tee /etc/logrotate.d/snipr >/dev/null'

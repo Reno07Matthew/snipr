@@ -1,0 +1,18 @@
+# Local Jenkins: docker compose -f jenkins/docker-compose.yml up -d --build
+# UI on http://127.0.0.1:8080 only. Create jenkins/.env first (see the Phase 6 notes).
+services:
+  jenkins:
+    build: .
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?create jenkins/.env first}
+    # Builds images through Docker Desktop's socket. Group 0 owns the socket; this
+    # gives the jenkins user Docker access without running Jenkins as root.
+    group_add: ["0"]
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  jenkins-home:

@@ -1,0 +1,33 @@
+# Jenkins configuration as code: one local admin and one pipeline job.
+jenkins:
+  systemMessage: "snipr CI demo (local only)"
+  numExecutors: 1
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: ${JENKINS_ADMIN_PASSWORD} # from jenkins/.env, never committed
+  authorizationStrategy: # only admin can do anything; anonymous gets nothing
+    globalMatrix:
+      entries:
+        - user:
+            name: admin
+            permissions: [Overall/Administer]
+jobs:
+  - script: >
+      pipelineJob('snipr') {
+        description('Mirrors the GitHub Actions CI: Ruff, pytest, Docker build, Trivy.')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/Reno07Matthew/snipr.git') }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }
