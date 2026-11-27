@@ -8,8 +8,7 @@ and Grafana, and backed up to S3.
 The application is deliberately small. The point is the platform around it, and
 that every part of it is understood, tested, and documented with real evidence.
 
-> **Status:** Phases 0–6 are done and verified (evidence in [docs/notes](docs/notes)).
-> Phase 7 (this documentation) is in final review.
+Every phase is documented with its evidence in [docs/notes](docs/notes).
 
 ## Contents
 
